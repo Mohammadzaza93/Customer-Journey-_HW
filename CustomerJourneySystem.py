@@ -103,7 +103,6 @@ class CustomerJourneySystem:
         return self.precompute_top_actions()
 
     def build_best_trip(self, country, solution, initial_action, result, **kwargs):
-        # تمثيل بسيط للمسار المتوقع بناءً على معطيات الإدخال
         trip = [initial_action, "Predicting Next Step...", result]
         return trip
     

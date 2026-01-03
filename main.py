@@ -1,4 +1,4 @@
-# h.py ============================================================
+# Main.py ============================================================
 from CustomerJourneySystem import CustomerJourneySystem
 import pandas as pd
 
