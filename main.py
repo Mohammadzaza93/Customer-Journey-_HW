@@ -20,7 +20,7 @@ print("By Solution:", system.top_by_solution)
 print("By Country + Solution:", system.top_by_country_solution)
 
 # ============================================================
-# 3. Allow user to add new actions
+# 3. Allow user to add new actions:
 # ============================================================
 while True:
     add_more = input("\nDo you want to add a new action? (yes/no): ").strip().lower()
