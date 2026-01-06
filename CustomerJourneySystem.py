@@ -103,6 +103,22 @@ class CustomerJourneySystem:
         return self.precompute_top_actions()
 
     def build_best_trip(self, country, solution, initial_action, result, **kwargs):
-        trip = [initial_action, "Predicting Next Step...", result]
+        
+        # تصفية البيانات للبحث عن حالات الفوز (won) التي استخدمت نفس الحل (solution)
+        winning_moves = self.df[
+            (self.df['opportunity_stage'].astype(str).str.contains('won', case=False, na=False)) &
+            (self.df['solution'] == solution)
+        ]['action']
+        
+        # إذا وجدنا بيانات سابقة، نختار الخطوة الأكثر تكراراً
+        if not winning_moves.empty:
+            real_step = winning_moves.mode()[0]
+        else:
+            # إذا لم نجد بيانات لنفس الحل، نبحث عن الخطوة الأنجح بشكل عام
+            all_winning = self.df[self.df['opportunity_stage'].astype(str).str.contains('won', case=False, na=False)]['action']
+            real_step = all_winning.mode()[0] 
+
+        # تجهيز النتيجة النهائية
+        trip = [initial_action, f"Recommended: {real_step}", result]
+        
         return trip
-    
