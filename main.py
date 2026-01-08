@@ -1,64 +1,84 @@
-# Main.py ============================================================
-from CustomerJourneySystem import CustomerJourneySystem
-import pandas as pd
+from customer_journey_system import CustomerJourneySystem
 
-# ============================================================
-# 1. Initialize the system and load data
-# ============================================================
+# ======================================================
+# 1️⃣ Load the Customer Journey System
+# ======================================================
 file_path = input("Enter the path to your Excel file: ").strip()
 system = CustomerJourneySystem(file_path)
-system.build_sequences()
-system.train_decision_tree()
-system.precompute_top_actions()
 
-# ============================================================
-# 2. Show current top actions before adding new ones
-# ============================================================
-print("\n--- Current Top Actions ---")
-print("By Country:", system.top_by_country)
-print("By Solution:", system.top_by_solution)
-print("By Country + Solution:", system.top_by_country_solution)
+# ======================================================
+# 2️⃣ Train the Win Probability Model
+# ======================================================
+system.train_win_probability_model()
 
-# ============================================================
-# 3. Allow user to add new actions:
-# ============================================================
-while True:
-    add_more = input("\nDo you want to add a new action? (yes/no): ").strip().lower()
-    if add_more != "yes":
-        break
+# ======================================================
+# 3️⃣ Ask the user to input the opportunity snapshot
+# ======================================================
+print("\n--- Enter Opportunity Snapshot ---")
+total_activities = int(input("Total activities: "))
+unique_activities = int(input("Unique activities: "))
+last_action = input("Last action: ").strip()
+country = input("Country: ").strip()
+solution = input("Solution: ").strip()
+is_lead = int(input("Is lead? (1 for Yes, 0 for No): "))
 
-    account_id = input("Enter account_id: ").strip()
-    action_now = input("Enter current action (action_now): ").strip()
-    action_next = input("Enter next action (action_next): ").strip()
-    country = input("Enter Country: ").strip()
-    solution = input("Enter Solution: ").strip()
-    result = input("Enter Result (e.g., Won, Loss, Unknown): ").strip()
-    sourcesystem = input("Enter SourceSystem (optional, default='Unknown'): ").strip() or "Unknown"
-    who_id = input("Enter Who_id (optional, default='Unknown'): ").strip() or "Unknown"
-    opportunity_id = input("Enter Opportunity_id (optional, default='Unknown'): ").strip() or "Unknown"
-    is_lead = input("Enter Is_lead (optional, default=0): ").strip()
-    is_lead = int(is_lead) if is_lead.isdigit() else 0
+opportunity_snapshot = {
+    "total_activities": total_activities,
+    "unique_activities": unique_activities,
+    "last_action": last_action,
+    "country": country,
+    "solution": solution,
+    "is_lead": is_lead
+}
 
-    # Add new action and recalc top actions
-    top_actions = system.add_action_and_recalculate(
-        account_id, action_now, action_next, country, solution, result,
-        sourcesystem, who_id, opportunity_id, is_lead
+# ======================================================
+# 4️⃣ Calculate Win Probability
+# ======================================================
+prob = system.predict_win_probability(opportunity_snapshot)
+print("\nWin Probability:", round(prob, 2))
+
+# ======================================================
+# 5️⃣ Display Top 5 Next Actions (case-insensitive)
+# ======================================================
+print("\n--- Top 5 Next Actions ---")
+# Filter is case-insensitive
+df = system.df_seq.copy()
+df["is_won"] = df["result"].str.contains("won", case=False, na=False).astype(int)
+
+filt = df[
+    (df["country"].str.lower() == country.lower()) &
+    (df["solution"].str.lower() == solution.lower()) &
+    (df["action_now"].str.lower() == last_action.lower())
+]
+
+if filt.empty:
+    print("No matching activities found.")
+else:
+    scores = filt.groupby("action_next").agg(
+        frequency=("action_next", "count"),
+        win_rate=("is_won", "mean")
     )
+    scores["score"] = scores["frequency"] * scores["win_rate"]
+    print(scores.sort_values("score", ascending=False).head(5))
 
-    print("\n--- Top Actions After Adding ---")
-    print("By Country:", top_actions["country"])
-    print("By Solution:", top_actions["solution"])
-    print("By Country + Solution:", top_actions["country_solution"])
+# ======================================================
+# 6️⃣ Display Top 5 Paths
+# ======================================================
+print("\n--- Top 5 Paths ---")
+best_paths = system.get_best_paths()
+print(best_paths)
 
-    # Build best trip
-    print("\n--- Building Best Trip for the Opportunity ---")
-    best_trip = system.build_best_trip(
-        country, solution, initial_action=action_now, result=result,
-        sourcesystem=sourcesystem, who_id=who_id, opportunity_id=opportunity_id, is_lead=is_lead
-    )
-    print(" -> ".join(best_trip))
+# ======================================================
+# 7️⃣ Display Top 4 Actions dynamically
+# ======================================================
+print("\n--- Top 4 Actions by Country ---")
+top_by_country = system.get_top_actions(by="country", top_n=4)
+print(top_by_country)
 
-    # Save updated sequences to Excel
-    output_file = "updated_data.xlsx"
-    system.df_seq.to_excel(output_file, index=False)
-    print(f"\nAll actions saved to '{output_file}'")
+print("\n--- Top 4 Actions by Solution ---")
+top_by_solution = system.get_top_actions(by="solution", top_n=4)
+print(top_by_solution)
+
+print("\n--- Top 4 Actions by Country and Solution ---")
+top_by_country_solution = system.get_top_actions(by="country_solution", top_n=4)
+print(top_by_country_solution)
